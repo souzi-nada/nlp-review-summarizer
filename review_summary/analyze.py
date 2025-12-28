@@ -5,6 +5,8 @@ from nltk.corpus import stopwords
 from collections import Counter
 import string
 from typing import List, Tuple, Dict
+import matplotlib.pyplot as plt
+
 
 
 def _download_nltk_data():
@@ -153,3 +155,34 @@ def generate_summary(pros: List[Tuple[str, int]], cons: List[Tuple[str, int]]) -
         cons_part = f"Common complaints centered on the {cons_list[0]}, {cons_list[1]}, and {cons_list[2]}"
 
     return f"{pros_part}. {cons_part}."
+
+def generate_sentiment_chart(reviews, output_path="sentiment_chart.png"):
+    """Generate a bar chart visualizing positive vs. negative vs. neutral sentiment."""
+    positive_count = sum(1 for review in reviews if _get_sentiment_score(review) > 0.05)
+    negative_count = sum(1 for review in reviews if _get_sentiment_score(review) < -0.05)
+    neutral_count = len(reviews) - positive_count - negative_count
+    
+    plt.figure(figsize=(10, 6))
+    sentiments = ['Positive', 'Negative', 'Neutral']
+    counts = [positive_count, negative_count, neutral_count]
+    colors = ['#2ecc71', '#e74c3c', '#95a5a6']
+    
+    plt.bar(sentiments, counts, color=colors, alpha=0.8, edgecolor='black')
+    plt.ylabel('Number of Reviews', fontsize=12, fontweight='bold')
+    plt.xlabel('Sentiment', fontsize=12, fontweight='bold')
+    plt.title('Customer Review Sentiment Distribution', fontsize=14, fontweight='bold')
+    plt.grid(axis='y', alpha=0.3)
+    
+    for i, count in enumerate(counts):
+        plt.text(i, count + 1, str(count), ha='center', fontweight='bold')
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"✓ Sentiment chart saved to: {output_path}")
+    plt.close()
+
+def _get_sentiment_score(review):
+    """Helper function to get sentiment score for a review."""
+    from nltk.sentiment import SentimentIntensityAnalyzer
+    sia = SentimentIntensityAnalyzer()
+    return sia.polarity_scores(review)['compound']

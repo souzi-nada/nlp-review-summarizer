@@ -1,2 +1,3 @@
 nltk
 pytest
+matplotlib>=3.5.0

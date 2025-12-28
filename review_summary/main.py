@@ -1,6 +1,6 @@
 """CLI entrypoint for review summary."""
 import sys
-from .analyze import load_reviews, analyze_reviews, generate_summary
+from .analyze import load_reviews, analyze_reviews, generate_summary, generate_sentiment_chart
 
 
 def main(argv=None):
@@ -22,6 +22,9 @@ def main(argv=None):
     result = analyze_reviews(reviews, top_n=3)
     paragraph = generate_summary(result.get("pros", []), result.get("cons", []))
     print(paragraph)
+    
+    # Generate sentiment visualization chart
+    generate_sentiment_chart(reviews)
 
 
 if __name__ == "__main__":
