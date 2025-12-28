@@ -11,6 +11,14 @@ def main(argv=None):
 
     path = argv[0]
     reviews = load_reviews(path)
+    
+    # Validate that we have at least 50 reviews
+    review_count = len(reviews)
+    if review_count < 50:
+        print(f"Warning: Expected at least 50 reviews, but found {review_count}.", file=sys.stderr)
+    else:
+        print(f"Successfully loaded {review_count} smartphone reviews.", file=sys.stderr)
+    
     result = analyze_reviews(reviews, top_n=3)
     paragraph = generate_summary(result.get("pros", []), result.get("cons", []))
     print(paragraph)

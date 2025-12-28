@@ -43,8 +43,30 @@ def _extract_top_nouns(texts: List[str], top_n: int = 3) -> List[Tuple[str, int]
         "terrible", "wonderful", "nice", "awesome", "okay", "ok", "mediocre", "very",
         "fast", "slow", "much", "many", "more", "less", "fine", "long", "high", "low",
         "possible", "likely", "sure", "big", "small", "life", "day", "time", "thing",
-        "way", "using", "use", "feel", "feeling"
+        "way", "using", "use", "feel", "feeling", "issue", "problem", "aspect"
     }
+    
+    # Term mapping: group related aspects under canonical names
+    term_mapping = {
+        "battery": {"battery", "charging", "charge", "charger", "drain"},
+        "camera": {"camera", "photo", "photography", "lens"},
+        "display": {"display", "screen", "brightness", "bleeding", "color", "reproduction"},
+        "performance": {"performance", "speed", "lag", "responsiveness", "multitasking"},
+        "heating": {"heating", "overheat", "overheat", "warm", "temperature", "heat"},
+        "build": {"build", "design", "casing", "quality", "weight", "solid", "premium", "material"},
+        "audio": {"audio", "speaker", "sound", "microphone", "noise"},
+        "fingerprint": {"fingerprint", "biometric", "recognition", "sensor"},
+        "software": {"software", "firmware", "update", "ui", "app", "crash", "lag"},
+        "connectivity": {"connectivity", "wifi", "bluetooth", "reception", "4g"},
+        "storage": {"storage", "memory", "space"},
+        "charger": {"charger", "charging"},
+    }
+    
+    # Create reverse mapping for quick lookup
+    reverse_mapping = {}
+    for canonical, related in term_mapping.items():
+        for term in related:
+            reverse_mapping[term] = canonical
     
     aspects = []
     import re
@@ -62,18 +84,9 @@ def _extract_top_nouns(texts: List[str], top_n: int = 3) -> List[Tuple[str, int]
                 if (word not in stop and word not in sentiment_words and 
                     not word.isdigit() and len(word) > 2):
                     lemma = lemmatizer.lemmatize(word, pos="n")
-                    aspects.append(lemma)
-                    
-                    # Also capture noun phrases (adjective + noun or noun + noun)
-                    if i > 0:
-                        prev_word, prev_pos = pos_tags[i-1]
-                        # Look for descriptive adjectives or nouns that modify
-                        if (prev_pos in ("JJ", "JJR", "JJS", "NN", "NNS") and 
-                            prev_word not in sentiment_words and prev_word not in stop and
-                            len(prev_word) > 2 and not prev_word.isdigit()):
-                            prev_lemma = lemmatizer.lemmatize(prev_word, pos="a" if prev_pos in ("JJ", "JJR", "JJS") else "n")
-                            phrase = f"{prev_lemma} {lemma}"
-                            aspects.append(phrase)
+                    # Map to canonical term
+                    canonical_term = reverse_mapping.get(lemma, lemma)
+                    aspects.append(canonical_term)
 
     counts = Counter(aspects)
     return counts.most_common(top_n)
@@ -111,21 +124,32 @@ def analyze_reviews(reviews: List[str], top_n: int = 3) -> Dict[str, List[Tuple[
 
 
 def generate_summary(pros: List[Tuple[str, int]], cons: List[Tuple[str, int]]) -> str:
-    """Generate a paragraph summarizing top pros and cons.
+    """Generate a narrative paragraph summarizing top pros and cons.
 
     pros/cons are lists of (phrase, count).
+    Creates a cohesive summary paragraph highlighting the most frequently mentioned aspects.
     """
     pros_list = [p for p, _ in pros]
     cons_list = [c for c, _ in cons]
 
+    # Build pros section
     if not pros_list:
-        pros_part = "No clear pros emerged from the reviews."
+        pros_part = "The reviews revealed no clear standout positive aspects."
+    elif len(pros_list) == 1:
+        pros_part = f"Users consistently praised the smartphone's {pros_list[0]}"
+    elif len(pros_list) == 2:
+        pros_part = f"The device was frequently commended for its {pros_list[0]} and {pros_list[1]}"
     else:
-        pros_part = "Users most frequently praised " + ", ".join(pros_list[:-1]) + (" and " + pros_list[-1] if len(pros_list) > 1 else pros_list[0]) + "."
+        pros_part = f"Customers most frequently highlighted the {pros_list[0]}, {pros_list[1]}, and {pros_list[2]} as standout strengths"
 
+    # Build cons section
     if not cons_list:
-        cons_part = "No clear cons were mentioned frequently."
+        cons_part = "No major complaints were consistently mentioned."
+    elif len(cons_list) == 1:
+        cons_part = f"The primary concern noted was the phone's {cons_list[0]}"
+    elif len(cons_list) == 2:
+        cons_part = f"Main drawbacks included the {cons_list[0]} and {cons_list[1]}"
     else:
-        cons_part = "Common complaints were " + ", ".join(cons_list[:-1]) + (" and " + cons_list[-1] if len(cons_list) > 1 else cons_list[0]) + "."
+        cons_part = f"Common complaints centered on the {cons_list[0]}, {cons_list[1]}, and {cons_list[2]}"
 
-    return f"{pros_part} {cons_part}"
+    return f"{pros_part}. {cons_part}."
