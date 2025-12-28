@@ -24,14 +24,14 @@ python -m venv .venv; .\.venv\Scripts\Activate.ps1
 
 3. Install dependencies:
 
-```powershell
+```bash
 pip install -r requirements.txt
 ```
 
 4. Run the CLI against the included sample reviews file:
 
-```powershell
-python -m review_summary.main C:\Users\suzy.william\Downloads\review_summary_project\reviews.txt
+```bash
+python -m review_summary.main reviews.txt
 ```
 
 Example output
