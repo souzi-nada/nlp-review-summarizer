@@ -11,9 +11,10 @@ def _download_nltk_data():
     # Ensure required NLTK data is available. Download quietly if missing.
     resources = [
         "punkt",
+        "punkt_tab",
         "stopwords",
         "vader_lexicon",
-        "averaged_perceptron_tagger",
+        "averaged_perceptron_tagger_eng",
         "wordnet",
         "omw-1.4",
     ]
@@ -35,27 +36,46 @@ def load_reviews(path: str) -> List[str]:
 def _extract_top_nouns(texts: List[str], top_n: int = 3) -> List[Tuple[str, int]]:
     lemmatizer = WordNetLemmatizer()
     stop = set(stopwords.words("english")) | set(string.punctuation)
-    nouns = []
+    
+    # Common sentiment adjectives and weak nouns to filter out
+    sentiment_words = {
+        "great", "excellent", "amazing", "fantastic", "good", "bad", "poor", "awful",
+        "terrible", "wonderful", "nice", "awesome", "okay", "ok", "mediocre", "very",
+        "fast", "slow", "much", "many", "more", "less", "fine", "long", "high", "low",
+        "possible", "likely", "sure", "big", "small", "life", "day", "time", "thing",
+        "way", "using", "use", "feel", "feeling"
+    }
+    
+    aspects = []
     import re
+    import nltk
 
     for text in texts:
-        # Use a simple regex tokenizer to avoid dependency on punkt and taggers
-        tokens = re.findall(r"\b[\w']+\b", text.lower())
+        # Tokenize and tag parts of speech
+        tokens = nltk.word_tokenize(text.lower())
+        pos_tags = nltk.pos_tag(tokens)
+        
+        # Extract nouns and noun phrases
+        for i, (word, pos) in enumerate(pos_tags):
+            # Include nouns (NN, NNS, NNP, NNPS)
+            if pos in ("NN", "NNS", "NNP", "NNPS"):
+                if (word not in stop and word not in sentiment_words and 
+                    not word.isdigit() and len(word) > 2):
+                    lemma = lemmatizer.lemmatize(word, pos="n")
+                    aspects.append(lemma)
+                    
+                    # Also capture noun phrases (adjective + noun or noun + noun)
+                    if i > 0:
+                        prev_word, prev_pos = pos_tags[i-1]
+                        # Look for descriptive adjectives or nouns that modify
+                        if (prev_pos in ("JJ", "JJR", "JJS", "NN", "NNS") and 
+                            prev_word not in sentiment_words and prev_word not in stop and
+                            len(prev_word) > 2 and not prev_word.isdigit()):
+                            prev_lemma = lemmatizer.lemmatize(prev_word, pos="a" if prev_pos in ("JJ", "JJR", "JJS") else "n")
+                            phrase = f"{prev_lemma} {lemma}"
+                            aspects.append(phrase)
 
-        # Filter tokens: remove stopwords, punctuation-only tokens and short tokens
-        filtered_tokens = [t for t in tokens if t not in stop and not t.isdigit() and len(t) > 1]
-
-        # Build candidate phrases (unigrams and bigrams) from filtered tokens
-        for i in range(len(filtered_tokens)):
-            # unigram
-            nouns.append(filtered_tokens[i])
-            # bigram
-            if i + 1 < len(filtered_tokens):
-                nouns.append(filtered_tokens[i] + " " + filtered_tokens[i + 1])
-
-    # Filter out stopwords and short tokens
-    filtered = [n for n in nouns if n and not all(ch.isdigit() for ch in n) and len(n) > 1]
-    counts = Counter(filtered)
+    counts = Counter(aspects)
     return counts.most_common(top_n)
 
 
